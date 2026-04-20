@@ -1,8 +1,7 @@
 import { AxiosError } from "axios";
-import { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ReactNode } from "react";
 import AuthFallback from "@/popup/components/Fallback/Auth/AuthFallback";
 import UnexpectedFallback from "@/popup/components/Fallback/Unexpected/UnexpectedFallback";
-import * as Sentry from "@sentry/browser";
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -28,18 +27,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    // Update state so the next render will show the fallback UI.
     if ((error as AxiosError)?.response?.status === 401)
       return { hasError: true, errorType: ERROR_TYPES.Auth };
     return { hasError: true, errorType: ERROR_TYPES.Unexpected };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const { errorType } = this.state;
-    console.error(error, errorInfo);
-
-    if (errorType === ERROR_TYPES.Unexpected && process.env.NODE_ENV === "production") {
-      Sentry.captureException(error, { extra: { errorInfo } });
+  public componentDidCatch(error: Error) {
+    // 401 에러는 의도된 동작이므로 콘솔 에러를 남기지 않습니다 (확장 프로그램 에러 뱃지 방지)
+    if ((error as AxiosError)?.response?.status !== 401) {
+      console.error("[autouniv] Unexpected Error:", error);
     }
   }
 

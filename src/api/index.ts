@@ -6,8 +6,9 @@ import {
   AssignmentInfo,
   AssignmentAssessmentResponse,
   AssignmentShortInfo,
+  LectureType,
 } from "@/types";
-import axios from "./axios";
+import { getAxios } from "./axios";
 
 interface FetchStudentIdParams {
   courseId: number;
@@ -31,6 +32,7 @@ interface FetchAndJoinAssignmentInfosParam {
 }
 
 const fetchCourses = async () => {
+  const axios = await getAxios();
   const { data } = await axios.get<Course[]>("api/v1/users/self/favorites/courses", {
     headers: { Authorization: undefined },
   });
@@ -38,6 +40,7 @@ const fetchCourses = async () => {
 };
 
 const fetchStudentId = async ({ courseId, userId }: FetchStudentIdParams) => {
+  const axios = await getAxios();
   const { data } = await axios.get<FetchStudentIdResponse>(
     `learningx/api/v1/courses/${courseId}/total_learnstatus/users/${userId}`
   );
@@ -45,6 +48,7 @@ const fetchStudentId = async ({ courseId, userId }: FetchStudentIdParams) => {
 };
 
 const fetchCourseStatus = async ({ courseId, userId }: FetchStudentIdParams) => {
+  const axios = await getAxios();
   const { data } = await axios.get<FetchStudentIdResponse>(
     `learningx/api/v1/courses/${courseId}/total_learnstatus/users/${userId}`
   );
@@ -56,6 +60,7 @@ const fetchCourseAssignmentDetails = async ({
   userId,
   studentId,
 }: FetchAssignmentsParams) => {
+  const axios = await getAxios();
   const { data } = await axios.get<AssignmentDetailResponse[]>(
     `learningx/api/v1/courses/${courseId}/allcomponents_db?user_id=${userId}&user_login=${studentId}&role=1`
   );
@@ -63,6 +68,7 @@ const fetchCourseAssignmentDetails = async ({
 };
 
 const fetchAssignmentAssessment = async (courseId: number): Promise<AssignmentShortInfo[]> => {
+  const axios = await getAxios();
   const { data } = await axios.get<AssignmentAssessmentResponse[]>(
     `api/v1/courses/${courseId}/assignment_groups?exclude_response_fields[]=description&exclude_response_fields[]=rubric&include[]=assignments&include[]=discussion_topic&override_assignment_dates=true&per_page=50`,
     { headers: { Authorization: undefined } }
@@ -84,12 +90,11 @@ const fetchAssignmentAssessment = async (courseId: number): Promise<AssignmentSh
     .flat();
 };
 
-// do SQL like join operation for assignment and assignment details
 const fetchAndJoinAssignmentInfos = async ({
   courseId,
   userId,
 }: FetchAndJoinAssignmentInfosParam) => {
-  const { assignments, item: courseStatus } = await fetchCourseStatus({
+  const { assignments: videoAssignments, item: courseStatus } = await fetchCourseStatus({
     courseId,
     userId: userId ?? 0,
   });
@@ -99,11 +104,49 @@ const fetchAndJoinAssignmentInfos = async ({
     studentId: courseStatus.user_login,
   });
 
-  return assignmentDetails.map((detail) => ({
+  const regularAssignments = assignmentDetails.map((detail) => ({
     ...detail,
-    ...assignments.find((assignment) => assignment.id === detail.assignment_id),
     course_id: courseId,
   })) as AssignmentInfo[];
+
+  const attendanceMap = courseStatus as unknown as Record<string, string>;
+  const videoLectures = videoAssignments
+    .filter((video) => video.content_type === "movie")
+    .map((video) => ({
+      assignment_id: video.id,
+      component_id: video.component_id,
+      completed: attendanceMap[`attendance_${video.component_id}_status`] === "attendance",
+      opened: true,
+      title: video.name,
+      description: "",
+      type: "video",
+      due_at: video.due_at,
+      unlock_at: video.unlock_at,
+      late_at: video.late_at,
+      lock_at: video.lock_at,
+      created_at: "",
+      use_attendance: true,
+      commons_content: {
+        content_id: video.content_id,
+        content_type: video.content_type as LectureType,
+        view_url: video.view_url,
+        thumbnail_url: "",
+        progress_support: true,
+        duration: video.duration,
+      },
+      view_info: { view_url: video.view_url },
+      id: video.id,
+      name: video.name,
+      content_id: video.content_id,
+      content_type: video.content_type,
+      view_url: video.view_url,
+      duration: video.duration,
+      section_id: video.section_id,
+      subsection_id: video.subsection_id,
+      course_id: courseId,
+    })) as AssignmentInfo[];
+
+  return [...videoLectures, ...regularAssignments];
 };
 
 export {

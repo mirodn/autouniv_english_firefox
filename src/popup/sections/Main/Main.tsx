@@ -6,6 +6,8 @@ import { playListAtom, selectedCourseIdsAtom, settingsAtom } from "@/atoms";
 import { useSetAtom, useAtomValue } from "jotai";
 import { useIsRestoring } from "@tanstack/react-query";
 import produce from "immer";
+import AuthFallback from "@/popup/components/Fallback/Auth/AuthFallback";
+import isUnauthorizedError from "@/utils/isUnauthorizedError";
 import MainControl from "./MainControl/MainControl";
 
 const MemoizedAssignmentList = memo(AssignmentList);
@@ -22,11 +24,11 @@ function Main() {
 
   // Queries
   const isRestoring = useIsRestoring();
-  const { data: courses } = useCourses();
+  const { data: courses, error: coursesError } = useCourses();
   const courseIds = courses?.map((course) => course.id);
   const assignmentResults = useAssignments({
     courseIds,
-    userId: courses?.[0].enrollments[0].user_id,
+    userId: courses?.[0]?.enrollments?.[0]?.user_id,
   });
   const assessmentResults = useAssignmentAssessments({ courseIds });
   const [assessmentAssignments, customAssignments] = useCustomAssignments({
@@ -62,6 +64,14 @@ function Main() {
     setCheckable(false);
     setCheckedAssignmentIdSet(new Set());
   };
+
+  if (
+    isUnauthorizedError(coursesError) ||
+    assignmentResults.some((result) => isUnauthorizedError(result.error)) ||
+    assessmentResults.some((result) => isUnauthorizedError(result.error))
+  ) {
+    return <AuthFallback />;
+  }
 
   return (
     <>

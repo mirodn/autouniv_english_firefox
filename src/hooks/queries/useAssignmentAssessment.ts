@@ -14,6 +14,8 @@ const useAssignmentAssessments = ({ courseIds }: UseAssignmentsParams) => {
         queryKey: [QUERY_KEYS.ASSIGNMENT_ASSESSMENTS, courseId],
         queryFn: () => fetchAssignmentAssessment(courseId),
         enabled: !!courseIds,
+        suspense: false,
+        useErrorBoundary: false,
       })) ?? [],
   });
 

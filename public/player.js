@@ -1,4 +1,10 @@
 (async () => {
+  let isEndSent = false;
+  function sendEndSignal() {
+    if (isEndSent) return;
+    isEndSent = true;
+    chrome.runtime.sendMessage({ message: "end" });
+  }
   const TIMEOUT_ERR_TEXT = "__TIMEOUT__";
   const DEFAULT_INTERVAL = 300;
   const DEFAULT_WAIT_TIMEOUT = 0;
@@ -27,54 +33,74 @@
   }
 
   function observeOkAndClear() {
+    const $confirmDialog = document.querySelector("#confirm-dialog");
+    if (!$confirmDialog) return;
     new MutationObserver(() => {
-      const $confirmDialog = document.querySelector("#confirm-dialog");
       const $okBtn = $confirmDialog.querySelector(".confirm-ok-btn");
-      if (!$confirmDialog || !$okBtn) return;
+      if (!$okBtn) return;
       if ($confirmDialog.style.display !== "table") return;
-
       $okBtn.click();
-    }).observe(document.querySelector("#confirm-dialog"), { attributes: true });
+    }).observe($confirmDialog, { attributes: true });
   }
 
-  function observeReplay() {
+  function observeReplay(startTime) {
+    const $replayBtn = document.querySelector(".player-restart-btn");
+    if (!$replayBtn) return;
     let timeoutId = null;
     new MutationObserver(() => {
-      const $replayBtn = document.querySelector(".player-restart-btn");
-      if (!$replayBtn) return;
       if (!$replayBtn.style.display || $replayBtn.style.display === "none") return;
-
+      // 재생 시작 후 최소 5초 이후에만 "end" 전송 (즉시 스킵 방지)
+      if (Date.now() - startTime < 5000) return;
       if (!timeoutId)
         timeoutId = setTimeout(() => {
           $replayBtn.click();
-          chrome.runtime.sendMessage({ message: "end" });
+          sendEndSignal();
         }, 1000);
-    }).observe(document.querySelector(".player-restart-btn"), { attributes: true });
+    }).observe($replayBtn, { attributes: true });
   }
 
   function checkPlay() {
     const $frontScreen = document.querySelector("#front-screen");
     if (!$frontScreen) return false;
     if ($frontScreen.style.display === "none") return true;
-
     const $playBtn = $frontScreen.querySelector(".vc-front-screen-play-btn");
+    if (!$playBtn) return false;
     $playBtn.click();
+    return false;
   }
-  const clickPlayrate = () =>
-    document.querySelector(`.vc-pctrl-playback-rate-btn:nth-child(${PLAYRATE})`).click();
-  const clickMute = () => document.querySelector(".vc-pctrl-volume-btn").click();
 
-  // 익스텐션에서 실행될 때만 자동 재생 기능 활성화
-  if (window.parent.parent.location === window.parent.parent.parent.location)
+  function tryClickPlayrate() {
+    const $btn = document.querySelector(`.vc-pctrl-playback-rate-btn:nth-child(${PLAYRATE})`);
+    if ($btn) $btn.click();
+    else console.log("[autouniv] clickPlayrate: 셀렉터 없음 (.vc-pctrl-playback-rate-btn:nth-child(" + PLAYRATE + "))");
+  }
+
+  function applyMute() {
+    // 1순위: video 엘리먼트에 직접 muted 적용 (가장 확실)
+    const $video = document.querySelector("video");
+    if ($video) {
+      $video.muted = true;
+      return;
+    }
+    // 2순위: lcms 플레이어 음소거 버튼 클릭
+    const $btn = document.querySelector(".vc-pctrl-volume-btn");
+    if ($btn) $btn.click();
+    else console.log("[autouniv] applyMute: video 엘리먼트도 볼륨 버튼도 없음");
+  }
+
+  // canvas 탭에 embed된 iframe 안에서만 자동 재생 기능 활성화
+  const isInIframe = window !== window.top;
+  if (isInIframe) {
     waitFor({ checker: checkPlay, timeout: 2000 })
       .then(() => {
-        clickMute();
-        clickPlayrate();
-        observeOkAndClear();
-        observeReplay();
+        const startTime = Date.now();
+        applyMute();
+        tryClickPlayrate();
+        try { observeOkAndClear(); } catch (e) { console.warn("[autouniv] observeOkAndClear 실패", e); }
+        try { observeReplay(startTime); } catch (e) { console.warn("[autouniv] observeReplay 실패", e); }
       })
       .catch((err) => {
-        console.log(err);
-        moveToNext();
+        console.warn("[autouniv] waitFor(checkPlay) 실패:", err);
       });
+  }
 })();

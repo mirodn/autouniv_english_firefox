@@ -39,6 +39,10 @@ function Providers({ children }: { children: React.ReactNode }) {
       persistOptions={{
         persister,
         maxAge: 1000 * 60 * 60 * 24,
+        buster: "auth-cache-v2",
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => query.state.status === "success",
+        },
       }}
     >
       <Provider>

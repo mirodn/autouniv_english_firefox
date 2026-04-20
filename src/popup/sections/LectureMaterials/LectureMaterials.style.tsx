@@ -3,7 +3,7 @@ import { styled as muiStyled } from "@mui/material/styles";
 import { LinearProgress, linearProgressClasses } from "@mui/material";
 
 const ButtonGroup = styled.div`
-  display: "inline-block";
+  display: inline-block;
   float: right;
 `;
 
@@ -11,7 +11,7 @@ const BorderLinearProgress = muiStyled(LinearProgress)(() => ({
   height: 10,
   borderRadius: 5,
   [`&.${linearProgressClasses.colorPrimary}`]: {
-    backgroundColor: 200,
+    backgroundColor: "#eeeeee",
   },
   [`& .${linearProgressClasses.bar}`]: {
     borderRadius: 5,

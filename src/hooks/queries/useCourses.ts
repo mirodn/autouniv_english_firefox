@@ -11,6 +11,8 @@ const useCourses = (
   const [selectedCourseIds, setselectedCourseIds] = useAtom(selectedCourseIdsAtom);
 
   const result = useQuery({
+    suspense: false,
+    useErrorBoundary: false,
     ...queryProps,
     queryKey: [QUERY_KEYS.COURSES],
     queryFn: () => fetchCourses(),

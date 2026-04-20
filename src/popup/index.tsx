@@ -13,8 +13,6 @@ import CssBaseline from "@mui/material/CssBaseline";
 import theme from "@/styles/theme";
 import GlobalStyle from "@/styles/global";
 import { AxiosError } from "axios";
-import * as Sentry from "@sentry/react";
-import { BrowserTracing } from "@sentry/tracing";
 import { enableMapSet } from "immer";
 
 const rootElement = document.querySelector("#root");
@@ -22,13 +20,9 @@ if (!rootElement) {
   throw new Error("Failed to find the root element");
 }
 
-if (process.env.NODE_ENV === "production")
-  Sentry.init({
-    dsn: "https://8dd7e97aae254e40aefb19f1d554eeac@o4504121681641472.ingest.sentry.io/4504121692651520",
-    integrations: [new BrowserTracing()],
-    release: "icampus-manager@1.2.0",
-    tracesSampleRate: 1.0,
-  });
+if (process.env.NODE_ENV === "production") {
+  // Sentry SDK가 MV3 환경이나 특정 에러 객체 직렬화 시 자체 크래시를 내는 문제가 있어 비활성화합니다.
+}
 
 enableMapSet();
 
@@ -54,6 +48,10 @@ root.render(
       persistOptions={{
         persister,
         maxAge: 1000 * 60 * 60 * 24,
+        buster: "auth-cache-v2",
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => query.state.status === "success",
+        },
       }}
     >
       <Provider>

@@ -12,6 +12,8 @@ const useStudentId = ({ courseId, userId }: UseStudentIdProps) => {
     queryKey: [QUERY_KEYS.STUDENTID, userId],
     queryFn: () => fetchStudentId({ courseId: courseId ?? 0, userId: userId ?? 0 }),
     enabled: !!courseId && !!userId,
+    suspense: false,
+    useErrorBoundary: false,
   });
 
   return result;

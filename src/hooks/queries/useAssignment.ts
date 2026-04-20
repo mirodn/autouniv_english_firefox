@@ -14,6 +14,8 @@ const useAssignments = ({ courseIds, userId }: UseAssignmentsParams) => {
         queryKey: [QUERY_KEYS.ASSIGNMENTS, courseId],
         queryFn: () => fetchAndJoinAssignmentInfos({ courseId, userId: userId ?? 0 }),
         enabled: !!userId && !!courseIds,
+        suspense: false,
+        useErrorBoundary: false,
       })) ?? [],
   });
 

@@ -5,6 +5,8 @@ import { List, ListSubheader, Button } from "@mui/material";
 import axios from "axios";
 import { useState } from "react";
 import JSZip from "jszip";
+import AuthFallback from "@/popup/components/Fallback/Auth/AuthFallback";
+import isUnauthorizedError from "@/utils/isUnauthorizedError";
 import * as S from "./LectureMaterials.style";
 
 const MATERIALS_LIST_SUBHEADER = "강의 교안 및 PDF 목록";
@@ -13,12 +15,19 @@ const DOWNLOAD_BUTTON_TEXT = "다운로드";
 function LectureMaterials() {
   const [progress, setProgress] = useState<number | false>(false);
   const [checked, setChecked] = useState(new Set<number>());
-  const { data: courses } = useCourses({});
+  const { data: courses, error: coursesError } = useCourses({});
   const results = useAssignments({
     courseIds: courses?.map((course) => course.id),
     userId: courses?.[0].enrollments[0].user_id,
   });
   const materials = useMemoMaterials({ results });
+
+  if (
+    isUnauthorizedError(coursesError) ||
+    results.some((result) => isUnauthorizedError(result.error))
+  ) {
+    return <AuthFallback />;
+  }
 
   const handleClickDownload = async () => {
     if (checked.size < 1) return;
